@@ -14,11 +14,11 @@ fn decode_bencoded_value(encoded_value: &str) -> serde_json::Value {
     }
 }
 
-fn decode_string(encoded_string: &str) -> serde_json::Value::String {
-    let colon_index = encoded_string.find(":").unwrap();
+fn decode_string(encoded_string: &str) -> serde_json::Value {
+    let colon_index = encoded_string.find(':').unwrap();
 
     let number_string = &encoded_string[..colon_index];
-    let string_length = number_string.parse::<i64>().unwrap();
+    let string_length = number_string.parse::<usize>().unwrap();
 
     let start_index = colon_index + 1;
     let string = &encoded_string[start_index..start_index + string_length];
@@ -27,90 +27,46 @@ fn decode_string(encoded_string: &str) -> serde_json::Value::String {
 }
 
 // Input should include starting 'i' and ending 'e'
-fn decode_integer(encoded_integer: &str) -> serde_json::Value::Number {
+fn decode_integer(encoded_integer: &str) -> serde_json::Value {
     let number_string = &encoded_integer[1..encoded_integer.len() - 1];
-    
+
     return serde_json::Value::Number(number_string.parse::<i64>().unwrap().into());
 }
 
 // Input should include starting 'l' and ending 'e'
-fn decode_list(encoded_list: &str) -> serde_json::Value::Array {
-    let result = Vec::new();
+fn decode_list(encoded_list: &str) -> serde_json::Value {
+    let mut result = Vec::new();
 
-    let current_encoded_value: &str = ""; 
-    let current_encoded_value_type: u8 = 0; // 0 for string, 1 for int, 2 for list
+    let mut current_encoded_value = String::new();
 
-    let encoded_string_length: usize = 0;
+    let mut encoded_string_length: isize = -1;
 
     for i in 1..encoded_list.len() - 1 {
-        let current_char = &encoded_list[i];
+        let current_char = &encoded_list.chars().nth(i).unwrap();
 
-        if &current_char != "" {
-            if current_encoded_value_type == 0 {
-                if encoded_string_length == 0 {
-                    let decoded = decode_string(&current_encoded_value);
-                    result.push(decoded);
-                    current_encoded_value = "";
-                } else if current_char == ":" {
-                    let length_string = &current_encoded_value;
-                    encoded_string_length = length_string.parse::<i64>().unwrap();
-                    current_encoded_value += &current_char;
-                } else {
-                    encoded_string_length -= 1;
-                }
-            } else if current_char == "e" {
-                current_encoded_value += &current_char;
-                
-                let decoded;
+        current_encoded_value.push(*current_char);
 
-                if current_encoded_value_type == 1 {
-                    decoded = decode_integer(&current_encoded_value);
-                } else if current_encoded_value_type == 2 {
-                    decoded = decode_list(&current_encoded_value);
-                }
-
-                result.push(decoded);
-                
-                current_encoded_value = "";
+        if current_encoded_value.chars().nth(0).unwrap().is_numeric() {
+            if encoded_string_length == 1 {
+                result.push(decode_string(&current_encoded_value));
+                current_encoded_value = String::new();
+                encoded_string_length = -1;
+            } else if current_char == &':' {
+                let length_string = &current_encoded_value[..current_encoded_value.len() - 1];
+                encoded_string_length = length_string.parse::<isize>().unwrap();
+            } else if encoded_string_length != -1 {
+                encoded_string_length -= 1;
             }
-        } else if &current_char.trim().parse::<i64>().is_ok() {
-            current_encoded_value += &current_char;
-            current_encoded_value_type = 0;
-            encoded_string_length += 1;
-        } else if &current_char == "i" {
-            current_encoded_value += &current_char;
-            current_encoded_value_type = 1;
-        } else if &current_char == "l" {
-            current_encoded_value += &current_char;
-            current_encoded_value_type = 2;
+        } else if (current_encoded_value.chars().nth(0).unwrap() == 'i'
+            || current_encoded_value.chars().nth(0).unwrap() == 'l')
+            && current_char == &'e'
+        {
+            result.push(decode_bencoded_value(&current_encoded_value));
+            current_encoded_value = String::new();
         }
     }
 
-    //  Loop over each char in encoded value, apart from first and last
-    //  if current_encoded_value is not empty
-    //      if type = 0
-    //          if encoded string length = 0
-    //              add char to encoded value
-    //              decode
-    //              set current encoded value to empty string 
-    //          else if current char is :
-    //              get string in currently encoded value as number (this is the length)
-    //              set encoded string length
-    //              add colon to encoded value
-    //          else decrement string length
-    //      else current char is e
-    //          add char to encoded_value
-    //          decode value depending on type
-    //          set current_encoded_value to empty string
-    //  else if current_value is a number
-    //      add number to encoded value and set type to 0
-    //      increment encoded string length
-    //  else if current value is i
-    //      add char to encoded value and set type to 1
-    //  else current value is l
-    //      add char to encoded value and set type to 2
-    
-    return serde_json:Value::Array(result);
+    return serde_json::Value::Array(result);
 }
 
 // Usage: your_bittorrent.sh decode "<encoded_value>"
