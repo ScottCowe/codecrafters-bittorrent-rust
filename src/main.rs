@@ -41,8 +41,13 @@ fn decode_list(encoded_list: &str) -> serde_json::Value {
 
     let mut encoded_string_length: isize = -1;
 
+    let mut start_end_char_difference = 0;
+
     for i in 1..encoded_list.len() - 1 {
         let current_char = &encoded_list.chars().nth(i).unwrap();
+
+        println!("Current encoded value is {}", current_encoded_value);
+        println!("Current char is {}", current_char);
 
         current_encoded_value.push(*current_char);
 
@@ -57,12 +62,20 @@ fn decode_list(encoded_list: &str) -> serde_json::Value {
             } else if encoded_string_length != -1 {
                 encoded_string_length -= 1;
             }
-        } else if (current_encoded_value.chars().nth(0).unwrap() == 'i'
-            || current_encoded_value.chars().nth(0).unwrap() == 'l')
-            && current_char == &'e'
-        {
-            result.push(decode_bencoded_value(&current_encoded_value));
+        } else if current_encoded_value.chars().nth(0).unwrap() == 'i' && current_char == &'e' {
+            result.push(decode_integer(&current_encoded_value));
             current_encoded_value = String::new();
+        } else if current_encoded_value.chars().nth(0).unwrap() == 'l' {
+            if current_char == &'i' || current_char == &'l' {
+                start_end_char_difference += 1;
+            } else if current_char == &'e' {
+                start_end_char_difference -= 1;
+            }
+
+            if start_end_char_difference == 0 {
+                result.push(decode_list(&current_encoded_value));
+                current_encoded_value = String::new();
+            }
         }
     }
 
