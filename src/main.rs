@@ -46,8 +46,8 @@ fn decode_list(encoded_list: &str) -> serde_json::Value {
     for i in 1..encoded_list.len() - 1 {
         let current_char = &encoded_list.chars().nth(i).unwrap();
 
-        println!("Current encoded value is {}", current_encoded_value);
-        println!("Current char is {}", current_char);
+        //println!("Current encoded value is {}", current_encoded_value);
+        //println!("Current char is {}", current_char);
 
         current_encoded_value.push(*current_char);
 
